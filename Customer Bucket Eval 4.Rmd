@@ -1,0 +1,274 @@
+---
+title: "Customer Attributes Analysis"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-09-09"
+---
+
+
+```{r echo=FALSE, include=FALSE}
+rm(list = ls())
+library(lubridate)
+library(BAMMtools)
+library(dplyr)
+library(tidyr)
+```
+
+
+
+
+
+```{r echo=FALSE}
+dat <- read.csv("/Users/dannyciaravino/Desktop/Workspace/R/Customer Attributes.csv", header = T)
+dat$avg_ord_size <- (dat$net_sales_amt/dat$inv_count)
+dat$cust_first_inv_date <- dmy(dat$cust_first_inv_date)
+dat$cust_tenure <- interval( dat$cust_first_inv_date,Sys.Date()) %/% months(1)
+```
+
+
+## AR Percent Current 
+```{r echo=FALSE}
+#par(mfrow=c(1,1.75))
+
+x <- subset(dat, dat$ar_pct_curr > 0 & dat$ar_pct_curr < 1)
+x <- x[order(x$ar_pct_curr), ]
+
+h <- hist(x$ar_pct_curr, breaks=40, plot=F)
+cols <- c("grey", "red3", "orange", "greenyellow", "limegreen")  
+k <- cols[findInterval(h$mids, quantile(x$ar_pct_curr, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h, col=k, main=paste("Histogram of AR% Current"), xlab='AR Current (%)')
+
+
+
+```
+
+
+```{r echo=FALSE}
+ar_pct_curr_jenksbreaks=getJenksBreaks(x$ar_pct_curr,40)
+h_j = hist(x$ar_pct_curr, breaks=ar_pct_curr_jenksbreaks,plot=F)
+
+k <- cols[findInterval(h_j$breaks, quantile(x$ar_pct_curr, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h_j, col=k, main=paste("Histogram of AR% Current w/ Jenks"), xlab='AR Current (%)')
+
+
+```
+
+
+```{r echo=FALSE, include=FALSE}
+
+ar_pct_curr_natural_breaks=data.frame((findInterval(h$mids, quantile(x$ar_pct_curr, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),h$mids)
+colnames(ar_pct_curr_natural_breaks)=c("class","value")
+#ar_pct_curr_natural_breaks
+
+
+ar_pct_curr_jenksbreaks=data.frame((findInterval(h_j$breaks, quantile(x$ar_pct_curr, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),ar_pct_curr_jenksbreaks)
+colnames(ar_pct_curr_jenksbreaks)=c("class","value")
+#ar_pct_curr_jenksbreaks
+```
+
+
+### Two Break methods compared
+
+
+
+```{r echo=FALSE}
+
+a=ar_pct_curr_natural_breaks%>%group_by(class)%>%summarise( min_sturges=min(value),max_sturges=max(value))
+b=ar_pct_curr_jenksbreaks%>%group_by(class)%>%summarise( min_jenks=min(value),max_jenks=max(value))
+
+
+a%>%left_join(b, by=join_by(class))
+```
+
+
+
+
+## Invoice Count
+
+```{r echo=FALSE}
+
+x <- dat[order(dat$inv_count), ]
+x <- subset(x, scale(x$inv_count, center=FALSE) > -4 & scale(x$inv_count, center=FALSE) < 4)
+
+h <- hist(x$inv_count, breaks=50, plot=F)
+cols <- c('grey', "red3", "orange", "greenyellow", "limegreen") 
+k <- cols[findInterval(h$mids, quantile(x$inv_count, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h, col=k, main=paste("Histogram of Total Invoice Count"), xlab='Count of Invoices')
+
+
+
+inv_count_jenksbreaks=getJenksBreaks(x$inv_count,50)
+h_j = hist(x$inv_count, breaks=inv_count_jenksbreaks,plot=F)
+
+k <- cols[findInterval(h_j$mids, quantile(x$inv_count, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h_j, col=k, main=paste("Invoice Count w/ Jenks"), xlab='Count of Invoices')
+
+
+
+```
+
+
+```{r echo=FALSE, include=FALSE}
+inv_count_natural_breaks=data.frame((findInterval(h$mids, quantile(x$inv_count, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),h$mids)
+colnames(inv_count_natural_breaks)=c("class","value")
+inv_count_natural_breaks
+
+
+inv_count_jenksbreaks=data.frame((findInterval(h_j$breaks, quantile(x$inv_count, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),inv_count_jenksbreaks)
+colnames(inv_count_jenksbreaks)=c("class","value")
+inv_count_jenksbreaks
+
+```
+
+### Two Break methods compared
+
+```{r echo=FALSE}
+a=inv_count_natural_breaks%>%group_by(class)%>%summarise( min_sturges=min(value),max_sturges=max(value))
+b=inv_count_jenksbreaks%>%group_by(class)%>%summarise( min_jenks=min(value),max_jenks=max(value))
+
+
+a%>%left_join(b, by=join_by(class))
+```
+
+
+## Average Order Size
+```{r echo=FALSE}
+## Avg Order Size
+x <- dat[order(dat$avg_ord_size), ]
+x <- subset(x, scale(x$avg_ord_size, center=FALSE) > -4 & scale(x$avg_ord_size, center=FALSE) < 4)
+
+#x = x%>%mutate(avg_ord_size=replace_na(avg_ord_size,0))
+
+h <- hist(x$avg_ord_size, breaks=90, plot=F)
+cols <- rev(c('grey', "red3", "orange", "greenyellow", "limegreen"))  
+k <- cols[findInterval(h$mids, quantile(x$avg_ord_size, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h, col=k, main=paste("Histogram of Average Order Size"),xlab="Avg Order Size")
+
+
+avg_ord_size_jenksbreaks=getJenksBreaks(x$avg_ord_size,90)
+h_j = hist(x$avg_ord_size, breaks=avg_ord_size_jenksbreaks,plot=F)
+
+k <- cols[findInterval(h_j$mids, quantile(x$avg_ord_size, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h_j, col=k, main=paste("Avg Order Size w/ Jenks"), xlab='Avg Order Size')
+
+
+```
+
+```{r echo=FALSE, include=FALSE}
+avg_ord_size_natural_breaks=data.frame((findInterval(h$mids, quantile(x$avg_ord_size, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),h$mids)
+colnames(avg_ord_size_natural_breaks)=c("class","value")
+avg_ord_size_natural_breaks
+
+
+avg_ord_size_jenksbreaks=data.frame((findInterval(h_j$breaks, quantile(x$avg_ord_size, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),avg_ord_size_jenksbreaks)
+colnames(avg_ord_size_jenksbreaks)=c("class","value")
+avg_ord_size_jenksbreaks
+
+
+```
+### Two Break methods compared
+
+```{r echo=FALSE}
+a=avg_ord_size_natural_breaks%>%group_by(class)%>%summarise( min_sturges=min(value),max_sturges=max(value))
+b=avg_ord_size_jenksbreaks%>%group_by(class)%>%summarise( min_jenks=round(min(value),digits = 3),max_jenks=max(value))
+
+
+a%>%left_join(b, by=join_by(class))
+```
+
+
+
+## Customer Margin Quality
+```{r echo=FALSE}
+## Customer Margin Quality
+x <- dat[order(dat$cust_margin_qual), ]
+x <- subset(x, scale(x$cust_margin_qual, center=FALSE) >= 0 & scale(x$cust_margin_qual, center=FALSE) < 4)
+
+h <- hist(x$cust_margin_qual, breaks=90, plot=F)
+cols <- c('grey', "red3", "orange", "greenyellow", "limegreen")  
+k <- cols[findInterval(h$mids, quantile(x$cust_margin_qual, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h, col=k, main=paste("Histogram of Customer Margin Quality (%)"),xlab='Customer Margin Quality (%)')
+
+cust_margin_qual_jenksbreaks=getJenksBreaks(x$cust_margin_qual,90)
+h_j = hist(x$cust_margin_qual, breaks=cust_margin_qual_jenksbreaks,plot=F)
+
+k <- cols[findInterval(h_j$mids, quantile(x$cust_margin_qual, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h_j, col=k, main=paste("Margin Quality w/ Jenks"), xlab='Customer Margin Quality (%)')
+
+
+```
+
+```{r echo=FALSE, include=FALSE}
+cust_margin_qual_natural_breaks=data.frame((findInterval(h$mids, quantile(x$cust_margin_qual, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),h$mids)
+colnames(cust_margin_qual_natural_breaks)=c("class","value")
+cust_margin_qual_natural_breaks
+
+
+cust_margin_qual_jenksbreaks=data.frame((findInterval(h_j$breaks, quantile(x$cust_margin_qual, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),cust_margin_qual_jenksbreaks)
+colnames(cust_margin_qual_jenksbreaks)=c("class","value")
+cust_margin_qual_jenksbreaks
+
+
+
+```
+
+### Two Break methods compared
+
+
+```{r echo=FALSE}
+a=cust_margin_qual_natural_breaks%>%group_by(class)%>%summarise( min_sturges=min(value),max_sturges=max(value))
+b=cust_margin_qual_jenksbreaks%>%group_by(class)%>%summarise( min_jenks=min(value),max_jenks=max(value))
+
+
+a%>%left_join(b, by=join_by(class))
+```
+
+
+## Customer Tenure
+```{r echo=FALSE}
+
+x <- dat[order(dat$cust_tenure), ]
+x <- subset(x, scale(x$cust_tenure, center=FALSE) >= 0 & scale(x$cust_tenure, center=FALSE) < 4)
+
+h <- hist(x$cust_tenure, breaks=90, plot=F)
+cols <- c('grey', "red3", "orange", "greenyellow", "limegreen")  
+k <- cols[findInterval(h$mids, quantile(x$cust_tenure, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h, col=k, main=paste("Histogram of Customer Tenure"), xlab='Customer Tenure (# Months)')
+
+cust_tenure_jenksbreaks=getJenksBreaks(x$cust_tenure,90)
+h_j = hist(x$cust_tenure, breaks=cust_tenure_jenksbreaks,plot=F)
+
+k <- cols[findInterval(h_j$mids, quantile(x$cust_tenure, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1]
+plot(h_j, col=k, main=paste("Customer Tenure w/ Jenks"), xlab='Customer Tenure (# Months)')
+
+
+```
+
+
+```{r echo=FALSE, include=FALSE}
+cust_tenure_natural_breaks=data.frame((findInterval(h$mids, quantile(x$cust_tenure, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),h$mids)
+colnames(cust_tenure_natural_breaks)=c("class","value")
+cust_tenure_natural_breaks
+
+
+cust_tenure_jenksbreaks=data.frame((findInterval(h_j$breaks, quantile(x$cust_tenure, probs=seq(0,1,0.25)), rightmost.closed=T, all.inside=F) + 1),cust_tenure_jenksbreaks)
+colnames(cust_tenure_jenksbreaks)=c("class","value")
+cust_tenure_jenksbreaks
+
+```
+
+### Two Break methods compared
+
+```{r echo=FALSE}
+a=cust_tenure_natural_breaks%>%group_by(class)%>%summarise( min_sturges=min(value),max_sturges=max(value))
+b=cust_tenure_jenksbreaks%>%group_by(class)%>%summarise( min_jenks=min(value),max_jenks=max(value))
+
+
+a%>%left_join(b, by=join_by(class))
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
